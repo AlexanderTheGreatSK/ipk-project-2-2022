@@ -72,29 +72,29 @@ build edit_cache: phony CMakeFiles/edit_cache.util
 
 build cmake_object_order_depends_target_ipk_project_2_2022: phony || CMakeFiles/ipk_project_2_2022.dir
 
-build CMakeFiles/ipk_project_2_2022.dir/ipk-simpleftp-server.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/ipk-simpleftp-server.c || cmake_object_order_depends_target_ipk_project_2_2022
-  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/ipk-simpleftp-server.c.o.d
+build CMakeFiles/ipk_project_2_2022.dir/server/ipk-simpleftp-server.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/server/ipk-simpleftp-server.c || cmake_object_order_depends_target_ipk_project_2_2022
+  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/server/ipk-simpleftp-server.c.o.d
   FLAGS = -g -std=gnu99
   OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
-  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir
+  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir/server
 
-build CMakeFiles/ipk_project_2_2022.dir/ipk-simpleftp-client.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/ipk-simpleftp-client.c || cmake_object_order_depends_target_ipk_project_2_2022
-  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/ipk-simpleftp-client.c.o.d
+build CMakeFiles/ipk_project_2_2022.dir/client/ipk-simpleftp-client.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/client/ipk-simpleftp-client.c || cmake_object_order_depends_target_ipk_project_2_2022
+  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/client/ipk-simpleftp-client.c.o.d
   FLAGS = -g -std=gnu99
   OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
-  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir
+  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir/client
 
-build CMakeFiles/ipk_project_2_2022.dir/serverConfig.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/serverConfig.c || cmake_object_order_depends_target_ipk_project_2_2022
-  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/serverConfig.c.o.d
+build CMakeFiles/ipk_project_2_2022.dir/server/serverConfig.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/server/serverConfig.c || cmake_object_order_depends_target_ipk_project_2_2022
+  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/server/serverConfig.c.o.d
   FLAGS = -g -std=gnu99
   OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
-  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir
+  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir/server
 
-build CMakeFiles/ipk_project_2_2022.dir/clientConfig.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/clientConfig.c || cmake_object_order_depends_target_ipk_project_2_2022
-  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/clientConfig.c.o.d
+build CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/client/clientConfig.c || cmake_object_order_depends_target_ipk_project_2_2022
+  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o.d
   FLAGS = -g -std=gnu99
   OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
-  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir
+  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir/client
 
 
 # =============================================================================
@@ -104,7 +104,7 @@ build CMakeFiles/ipk_project_2_2022.dir/clientConfig.c.o: C_COMPILER__ipk_projec
 #############################################
 # Link the executable ipk_project_2_2022
 
-build ipk_project_2_2022: C_EXECUTABLE_LINKER__ipk_project_2_2022_Debug CMakeFiles/ipk_project_2_2022.dir/ipk-simpleftp-server.c.o CMakeFiles/ipk_project_2_2022.dir/ipk-simpleftp-client.c.o CMakeFiles/ipk_project_2_2022.dir/serverConfig.c.o CMakeFiles/ipk_project_2_2022.dir/clientConfig.c.o
+build ipk_project_2_2022: C_EXECUTABLE_LINKER__ipk_project_2_2022_Debug CMakeFiles/ipk_project_2_2022.dir/server/ipk-simpleftp-server.c.o CMakeFiles/ipk_project_2_2022.dir/client/ipk-simpleftp-client.c.o CMakeFiles/ipk_project_2_2022.dir/server/serverConfig.c.o CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o
   FLAGS = -g
   OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
   POST_BUILD = :

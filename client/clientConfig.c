@@ -19,7 +19,6 @@ void destroyConfig(ClientConfig **clientConfig) {
 }
 
 void debugPrintConfig(ClientConfig **clientConfig) {
-
   printf("Port: %d\n", (*clientConfig)->port);
   printf("IP address: %s\n", (*clientConfig)->ip);
   printf("Working directory: %s\n", (*clientConfig)->workingDirectory);

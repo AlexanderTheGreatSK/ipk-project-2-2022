@@ -108,35 +108,35 @@
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "ipk-simpleftp-server.c",
+			"path" : "server/ipk-simpleftp-server.c",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "ipk-simpleftp-client.c",
+			"path" : "client/ipk-simpleftp-client.c",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
-			"path" : "serverConfig.h",
+			"path" : "server/serverConfig.h",
 			"sourceGroupIndex" : 1
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "serverConfig.c",
+			"path" : "server/serverConfig.c",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 1,
-			"path" : "clientConfig.h",
+			"path" : "client/clientConfig.h",
 			"sourceGroupIndex" : 1
 		},
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "clientConfig.c",
+			"path" : "client/clientConfig.c",
 			"sourceGroupIndex" : 0
 		}
 	],

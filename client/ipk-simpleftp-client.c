@@ -8,6 +8,8 @@
 
 int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig);
 void printUsage();
+void printHelp();
+void printLetMeIn();
 int analyze(char *line, bool *loggedIn, bool *tobe, bool *send);
 
 int main(int argc, char **argv) {
@@ -86,54 +88,16 @@ int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig) {
   return 0;
 }
 
-void printUsage() {
-  printf("Simple File Transfer Protocol - client\n");
-  printf("Usage:\n");
-  printf("./ipk-simpleftp-client {-h server IP} {-p port} [-f path to working directory]\n");
-  printf("-h server IP - IPv4 or IPv6 address supported - required parameter\n");
-  printf("-p port - if not provided, default value is 115\n");
-  printf("-f path to working directory on server - required parameter\n\n");
-  printf("Description:\n");
-  printf("This server works just with ipk-simpleftp-server\n\n");
-  printf("Author: Alexander Okrucký [xokruc00]\n");
-}
-
 int analyze(char *line, bool *loggedIn, bool *tobe, bool *send) {
   line[strlen(line)-1] = '\0';
   printf("|%s|\n", line);
   if(strcmp(line, "DONE") == 0) {
     return 1;
   } else if(strcmp(line, "HELP") == 0) {
-    printf("------------------------------------------------------------------------------------------\n");
-    printf("Usage:\n");
-    printf("\t<command> : = <cmd> [<SPACE> <args>] <NULL>\n");
-    printf("\t<cmd> : =  USER ! ACCT ! PASS ! TYPE ! LIST ! CDIR ! KILL ! NAME ! DONE ! RETR ! STOR\n");
-    printf("\t<response> : = <response-code> [<message>] <NULL>\n");
-    printf("\t<response-code> : =  + | - |   | !\n");
-    printf("\t<message> can contain <CRLF>\n");
-    printf("\nMore information about commands is in documentation.\n");
-    printf("\nFor help how to log in type LET-ME-IN.\n");
-    printf("------------------------------------------------------------------------------------------\n");
+    printHelp();
     return 0;
   } else if(strcmp(line, "LET-ME-IN") == 0) {
-    printf("------------------------------------------------------------------------------------------\n");
-    printf("How to log in:\n");
-    printf("You can first type password or username, it is up to you.\n\n");
-    printf("USER user-name\n");
-    printf("\t!<user-name> logged in -> no password needed\n");
-    printf("\t+user-name valid -> need to send password\n");
-    printf("\t-Invalid user-name -> user with given user-name does not exist\n\n");
-    printf("ACCT user-name\n");
-    printf("\t!<user-name> logged in -> no password needed\n");
-    printf("\t+user-name valid -> send password, next send password\n");
-    printf("\t-Invalid user-name -> user with given user-name does not exist\n\n");
-    printf("PASS password\n");
-    printf("\t! Logged in -> password is ok and u can start transfer\n");
-    printf("\t+Send account -> password is ok but you have not specified account\n");
-    printf("\t-Wrong password -> bad password\n\n");
-    printf("More information in documentation.\n");
-    printf("For help use HELP.\n");
-    printf("------------------------------------------------------------------------------------------\n");
+    printUsage();
     return 0;
   }
 
@@ -148,6 +112,9 @@ int analyze(char *line, bool *loggedIn, bool *tobe, bool *send) {
 
       split = strtok(NULL, " ");
 
+      if(split == NULL) {
+        return -1;
+      }
       if(strcmp(split, "F") == 0 || strcmp(split, "V") == 0) {
         return 0;
       }
@@ -156,6 +123,10 @@ int analyze(char *line, bool *loggedIn, bool *tobe, bool *send) {
     } else if(strcmp(split, "TYPE") == 0) {
       split = strtok(NULL, " ");
 
+      if(split == NULL) {
+        return -1;
+      }
+
       if(strcmp(split, "A") == 0 || strcmp(split, "B") == 0 || strcmp(split, "C") == 0) {
         return 0;
       }
@@ -163,7 +134,7 @@ int analyze(char *line, bool *loggedIn, bool *tobe, bool *send) {
     } else if(strcmp(split, "CDIR") == 0) {
       split = strtok(NULL, " ");
 
-      if(split != NULL) {
+      if(split == NULL) {
         return -1;
       }
       return 0;
@@ -239,10 +210,8 @@ int analyze(char *line, bool *loggedIn, bool *tobe, bool *send) {
   } else {
     if(strcmp(split, "USER") == 0 || strcmp(split, "ACCT") == 0 || strcmp(split, "PASS") == 0) {
       split = strtok(NULL, " ");
-      split = strtok(NULL, " ");
-      if(split != NULL) {
-        printf("Too many args.\n");
-        return 0;
+      if(split == NULL) {
+        return -1;
       }
 
       printf("OKAY\n");
@@ -254,7 +223,55 @@ int analyze(char *line, bool *loggedIn, bool *tobe, bool *send) {
       printf("More information is in the documentation.\n");
       return 0;
     }
-  }
 
-  return -1;
+  }
+}
+
+// Printing zone
+//----------------------------------------------------------------------------------------------------
+
+void printUsage() {
+  printf("Simple File Transfer Protocol - client\n");
+  printf("Usage:\n");
+  printf("./ipk-simpleftp-client {-h server IP} {-p port} [-f path to working directory]\n");
+  printf("-h server IP - IPv4 or IPv6 address supported - required parameter\n");
+  printf("-p port - if not provided, default value is 115\n");
+  printf("-f path to working directory on server - required parameter\n\n");
+  printf("Description:\n");
+  printf("This server works just with ipk-simpleftp-server\n\n");
+  printf("Author: Alexander Okrucký [xokruc00]\n");
+}
+
+void printHelp() {
+  printf("------------------------------------------------------------------------------------------\n");
+  printf("Usage:\n");
+  printf("\t<command> : = <cmd> [<SPACE> <args>] <NULL>\n");
+  printf("\t<cmd> : =  USER ! ACCT ! PASS ! TYPE ! LIST ! CDIR ! KILL ! NAME ! DONE ! RETR ! STOR\n");
+  printf("\t<response> : = <response-code> [<message>] <NULL>\n");
+  printf("\t<response-code> : =  + | - |   | !\n");
+  printf("\t<message> can contain <CRLF>\n");
+  printf("\nMore information about commands is in documentation.\n");
+  printf("\nFor help how to log in type LET-ME-IN.\n");
+  printf("------------------------------------------------------------------------------------------\n");
+}
+
+void printLetMeIn() {
+  printf("------------------------------------------------------------------------------------------\n");
+  printf("How to log in:\n");
+  printf("You can first type password or username, it is up to you.\n\n");
+  printf("USER user-name\n");
+  printf("\t!<user-name> logged in -> no password needed\n");
+  printf("\t+user-name valid -> need to send password\n");
+  printf("\t-Invalid user-name -> user with given user-name does not exist\n\n");
+  printf("ACCT user-name\n");
+  printf("\t!<user-name> logged in -> no password needed\n");
+  printf("\t+user-name valid -> send password, next send password\n");
+  printf("\t-Invalid user-name -> user with given user-name does not exist\n\n");
+  printf("PASS password\n");
+  printf("\t! Logged in -> password is ok and u can start transfer\n");
+  printf("\t+Send account -> password is ok but you have not specified account\n");
+  printf("\t-Wrong password -> bad password\n\n");
+  printf("More information in documentation.\n");
+  printf("For help use HELP.\n");
+  printf("------------------------------------------------------------------------------------------\n");
 }

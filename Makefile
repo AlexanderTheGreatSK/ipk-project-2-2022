@@ -4,7 +4,7 @@ CFLAGS=-Wall -Wextra -std=c99 -g -Wno-unused-parameter
 CLIENT=./client/ipk-simpleftp-client.c
 CLIENT_LIBS=./client/clientConfig.c
 SERVER=./server/ipk-simpleftp-server.c
-SERVER_LIBS=./server/serverConfig.c
+SERVER_LIBS=./server/serverConfig.c ./server/auth.c
 
 .PHONY: all
 all:

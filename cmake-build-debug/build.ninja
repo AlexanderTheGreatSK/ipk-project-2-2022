@@ -96,6 +96,12 @@ build CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o: C_COMPILER__ipk
   OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
   OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir/client
 
+build CMakeFiles/ipk_project_2_2022.dir/server/auth.c.o: C_COMPILER__ipk_project_2_2022_Debug /home/alex/CLionProjects/ipk-project-2-2022/server/auth.c || cmake_object_order_depends_target_ipk_project_2_2022
+  DEP_FILE = CMakeFiles/ipk_project_2_2022.dir/server/auth.c.o.d
+  FLAGS = -g -std=gnu99
+  OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
+  OBJECT_FILE_DIR = CMakeFiles/ipk_project_2_2022.dir/server
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target ipk_project_2_2022
@@ -104,7 +110,7 @@ build CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o: C_COMPILER__ipk
 #############################################
 # Link the executable ipk_project_2_2022
 
-build ipk_project_2_2022: C_EXECUTABLE_LINKER__ipk_project_2_2022_Debug CMakeFiles/ipk_project_2_2022.dir/server/ipk-simpleftp-server.c.o CMakeFiles/ipk_project_2_2022.dir/client/ipk-simpleftp-client.c.o CMakeFiles/ipk_project_2_2022.dir/server/serverConfig.c.o CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o
+build ipk_project_2_2022: C_EXECUTABLE_LINKER__ipk_project_2_2022_Debug CMakeFiles/ipk_project_2_2022.dir/server/ipk-simpleftp-server.c.o CMakeFiles/ipk_project_2_2022.dir/client/ipk-simpleftp-client.c.o CMakeFiles/ipk_project_2_2022.dir/server/serverConfig.c.o CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o CMakeFiles/ipk_project_2_2022.dir/server/auth.c.o
   FLAGS = -g
   OBJECT_DIR = CMakeFiles/ipk_project_2_2022.dir
   POST_BUILD = :

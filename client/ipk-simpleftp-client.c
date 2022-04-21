@@ -3,6 +3,9 @@
 #include <getopt.h>
 #include <string.h>
 #include <stdbool.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 #include "clientConfig.h"
 
@@ -17,7 +20,7 @@ int main(int argc, char **argv) {
 
   bool loggedIn = false;
   bool tobe = false;
-  bool send = false;
+  bool sendB = false;
   ClientConfig *clientConfig = malloc(sizeof(ClientConfig));
   initConfig(clientConfig);
 
@@ -35,11 +38,63 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  int socket_desc;
+  struct sockaddr_in server_addr;
+  char server_message[2000], client_message[2000];
+
+    memset(server_message,'\0',sizeof(server_message));
+    memset(client_message,'\0',sizeof(client_message));
+
+    // Create socket:
+    socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+
+    if(socket_desc < 0){
+        printf("Unable to create socket\n");
+        return -1;
+    }
+
+    printf("Socket created successfully\n");
+
+    // Set port and IP the same as server-side:
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(2000);
+    server_addr.sin_addr.s_addr = inet_addr("192.168.56.101");
+
+    // Send connection request to server:
+    if(connect(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
+        printf("Unable to connect\n");
+        return -1;
+    }
+    printf("Connected with server successfully\n");
+
+    // Get input from the user:
+    printf("Enter message: ");
+    fgets(client_message, 1000, stdin);
+
+    // Send the message to server:
+    if(send(socket_desc, client_message, strlen(client_message), 0) < 0){
+        printf("Unable to send message\n");
+        return -1;
+    }
+
+    // Receive the server's response:
+    if(recv(socket_desc, server_message, sizeof(server_message), 0) < 0){
+        printf("Error while receiving server's msg\n");
+        return -1;
+    }
+
+    printf("Server's response: %s\n",server_message);
+
+    // Close the socket:
+    close(socket_desc);
+
+    return 0;
+
   char *line = malloc(sizeof(char) * 110);
   int responseCode;
   while(true) {
     fgets(line, 100, stdin);
-    responseCode = analyze(line, &loggedIn, &tobe, &send);
+    responseCode = analyze(line, &loggedIn, &tobe, &sendB);
     if(responseCode == 1) {
       break;
     } else if(responseCode == -1) {

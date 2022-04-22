@@ -4,8 +4,13 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+
+#define MAX 80
+#define PORT 115
+#define SA struct sockaddr
 
 #include "serverConfig.h"
 #include "auth.h"
@@ -14,10 +19,120 @@ int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig);
 void printUsage();
 int analyze(char *line, User **user, ServerConfig *serverConfig);
 
+void func(int connfd)
+{
+    char buff[MAX];
+    int n;
+    // infinite loop for chat
+    for (;;) {
+        bzero(buff, MAX);
+
+        // read the message from client and copy it in buffer
+        read(connfd, buff, sizeof(buff));
+        // print buffer which contains the client contents
+        printf("From client: %s\t To client : ", buff);
+        bzero(buff, MAX);
+        n = 0;
+        // copy server message in the buffer
+        while ((buff[n++] = getchar()) != '\n')
+            ;
+
+        // and send that buffer to client
+        write(connfd, buff, sizeof(buff));
+
+        // if msg contains "Exit" then server exit and chat ended.
+        if (strncmp("exit", buff, 4) == 0) {
+            printf("Server Exit...\n");
+            break;
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
   printf("hello from server\n");
 
-  ServerConfig *serverConfig = malloc(sizeof(ServerConfig));
+    int sockfd, connfd, len;
+    struct sockaddr_in6 servaddr, cli;
+    int flag = 1;
+    int flag_off = 0;
+
+    // socket create and verification
+    sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
+        exit(0);
+    }
+    else
+        printf("Socket successfully created..\n");
+    
+const char *opt;
+opt = "enp0s3";
+int len6 = 6;
+
+
+    if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&flag,sizeof(flag)) < 0)
+      fprintf(stderr, "ERROR setting REUSE socket option") ;
+
+    bzero((char *) &servaddr, sizeof(servaddr));
+
+    /*if((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) == -1)){
+        fprintf(stderr, "setsockopt failed (reuseaddr)\n");
+    }*/
+
+    /*if ((setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, (char *) &opt, strlen(opt))) == -1) {
+        fprintf(stderr, "setsockopt failed (INTERFACE)\n");
+    }*/
+
+    /*if(setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &flag_off, sizeof(flag_off)) == -1){
+        fprintf(stderr,"setsockopt failed (v6only)\n");
+    }*/
+
+
+
+    //bzero(&servaddr, sizeof(servaddr));
+
+    // assign IP, PORT
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin6_family = AF_INET6;
+    servaddr.sin6_addr = in6addr_any;
+    servaddr.sin6_port = htons(PORT);
+    servaddr.sin6_scope_id = 0;
+    servaddr.sin6_flowinfo = 0;
+
+    // Binding newly created socket to given IP and verification
+    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
+        printf("socket bind failed...\n");
+        exit(0);
+    }
+    else
+        printf("Socket successfully binded..\n");
+
+    // Now server is ready to listen and verification
+    if ((listen(sockfd, SOMAXCONN)) != 0) {
+        printf("Listen failed...\n");
+        exit(0);
+    }
+    else
+        printf("Server listening..\n");
+    len = sizeof(cli);
+
+    // Accept the data packet from client and verification
+    connfd = accept(sockfd, (SA*)&cli, &len);
+    if (connfd < 0) {
+        printf("server accept failed...\n");
+        exit(0);
+    }
+    else
+        printf("server accept the client...\n");
+
+    // Function for chatting between client and server
+    func(connfd);
+
+    // After chatting close the socket
+    close(sockfd);
+    return 0;
+
+  /*ServerConfig *serverConfig = malloc(sizeof(ServerConfig));
   initConfig(serverConfig);
 
   User *user = malloc(sizeof(User));
@@ -49,7 +164,7 @@ int main(int argc, char *argv[]) {
   socket_desc = socket(AF_INET, SOCK_STREAM, 0);
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(2000);
-  server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
   if(bind(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
       printf("Couldn't bind to the port\n");
@@ -66,7 +181,7 @@ int main(int argc, char *argv[]) {
   client_size = (socklen_t *) sizeof(client_addr);
   client_sock = accept(socket_desc, (struct sockaddr*)&client_addr, client_size);
 
-    if (client_sock < 0){
+    if (client_size == 0){
         printf("Can't accept\n");
         return -1;
     }
@@ -101,7 +216,7 @@ int main(int argc, char *argv[]) {
       break;
     }
     debugPrintUser(&user);
-  }
+  }*/
 
   /*char *name = "kk";
 
@@ -131,13 +246,13 @@ int main(int argc, char *argv[]) {
       printf("Use LET-ME-IN for help with logging in.\n");
     }
   }*/
-
+/*
   free(line);
   destroyConfig(&serverConfig);
   destroyUser(&user);
   free(user);
   free(serverConfig);
-  return 0;
+  return 0;*/
 }
 
 int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig) {

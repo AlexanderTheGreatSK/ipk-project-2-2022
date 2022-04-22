@@ -1,0 +1,1 @@
+/usr/bin/cc -g CMakeFiles/ipk_project_2_2022.dir/server/ipk-simpleftp-server.c.o CMakeFiles/ipk_project_2_2022.dir/client/ipk-simpleftp-client.c.o CMakeFiles/ipk_project_2_2022.dir/server/serverConfig.c.o CMakeFiles/ipk_project_2_2022.dir/client/clientConfig.c.o CMakeFiles/ipk_project_2_2022.dir/server/auth.c.o -o ipk_project_2_2022 

@@ -49,8 +49,8 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/alex/CLionProjects/ipk-project-2-2022/cmake-build-debug",
-		"source" : "/home/alex/CLionProjects/ipk-project-2-2022"
+		"build" : "/home/alexanderthegreat/CLionProjects/ipk-project-2-2022/cmake-build-debug",
+		"source" : "/home/alexanderthegreat/CLionProjects/ipk-project-2-2022"
 	},
 	"version" : 
 	{

@@ -5,9 +5,16 @@
 #include <stdbool.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
-
+#include <netdb.h>
 #include "clientConfig.h"
+#include <sys/socket.h>
+#include <netdb.h>
+
+#define MAX 80
+#define PORT 115
+#define SA struct sockaddr
 
 int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig);
 void printUsage();
@@ -15,14 +22,129 @@ void printHelp();
 void printLetMeIn();
 int analyze(char *line, bool *loggedIn, bool *tobe, bool *send);
 
+void func(int sockfd) {
+    char buff[MAX];
+    int n;
+    for (;;) {
+        //bzero(buff, sizeof(buff));
+        printf("Enter the string : ");
+        n = 0;
+        while ((buff[n++] = getchar()) != '\n')
+            ;
+        write(sockfd, buff, sizeof(buff));
+        //bzero(buff, sizeof(buff));
+        read(sockfd, buff, sizeof(buff));
+        printf("From Server : %s", buff);
+        if ((strncmp(buff, "exit", 4)) == 0) {
+            printf("Client Exit...\n");
+            break;
+        }
+    }
+}
+
+
 int main(int argc, char **argv) {
   printf("hello from client\n");
+    int sockfd,  n;
+  struct addrinfo hints;
+  char buffer[256];
+  struct addrinfo *result;
+  struct addrinfo *rp;
+  char *portA = "115";
+    int s;
+  //char *serverIP = "fe80::f55b:6004:5817:95e5";
+  char *serverIP = "2a02:8308:a085:7900:db6d:77f6:3ff0:e92a";
 
-  bool loggedIn = false;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+    printf("hello from client\n");
+
+
+    s = getaddrinfo(serverIP, portA, &hints, &result);
+    printf("hello from client\n");
+
+    if (s != 0) {
+      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+  }
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sockfd == -1)
+            continue;
+
+        if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1)
+            break;                  /* Success */
+
+        close(sockfd);
+    }
+
+    if (rp == NULL) {               /* No address succeeded */
+        fprintf(stderr, "Could not find the right address to connect\n");
+        exit(EXIT_FAILURE);
+    }
+
+    freeaddrinfo(result);
+
+    n = send(sockfd,buffer, strlen(buffer)+1, 0);
+    if(n < 0) {
+        fprintf(stderr, "ERROR writing to socket");
+    }
+
+    memset(buffer, 0, 256);
+    n = recv(sockfd, buffer, 255, 0);
+
+    if (n < 0) {
+        fprintf(stderr, "ERROR reading from socket");
+    }
+    printf("Message from server: %d bytes %s\n", n,buffer);
+    close(sockfd);
+    return 0;
+    /*int flag_off = 0;
+    int sockfd, connfd;
+    struct addrinfo hints;
+    struct sockaddr_in6 servaddr, cli;
+
+    // socket create and verification
+    sockfd = socket(AF_INET6, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
+        exit(0);
+    }
+    else
+        printf("Socket successfully created..\n");
+
+
+    bzero(&servaddr, sizeof(servaddr));
+    // assign IP, PORT
+    servaddr.sin6_family = AF_UNSPEC;
+    //servaddr.sin6_addr = inet_addr("192.168.56.102");
+    inet_pton(AF_INET6, "fe80::f55b:6004:5817:95e5", &servaddr.sin6_addr);
+    servaddr.sin6_port = htons(PORT);
+    servaddr.sin6_flowinfo = 0;
+    servaddr.sin6_scope_id = 0;
+
+    // connect the client socket to server socket
+    if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) {
+        printf("connection with the server failed...\n");
+        exit(0);
+    }
+    else
+        printf("connected to the server..\n");
+
+    // function for chat
+    func(sockfd);
+
+    // close the socket
+    close(sockfd);
+    return 0;*/
+  /*bool loggedIn = false;
   bool tobe = false;
   bool sendB = false;
   ClientConfig *clientConfig = malloc(sizeof(ClientConfig));
   initConfig(clientConfig);
+
+    int flag = 1;
+    int flag_off = 0;
 
   int rc = argumentHandler(argc, argv, clientConfig);
 
@@ -58,7 +180,7 @@ int main(int argc, char **argv) {
     // Set port and IP the same as server-side:
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(2000);
-    server_addr.sin_addr.s_addr = inet_addr("192.168.56.101");
+    server_addr.sin_addr.s_addr = inet_addr("192.168.56.102");
 
     // Send connection request to server:
     if(connect(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
@@ -108,7 +230,7 @@ int main(int argc, char **argv) {
   destroyConfig(&clientConfig);
   free(clientConfig);
 
-  return 0;
+  return 0;*/
 }
 
 int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig) {

@@ -10,15 +10,17 @@
  * @param workingDirectory    -> path to working directory
  * */
 typedef struct {
-int port;
-char *interface;
-char *passwordFile;
-char *workingDirectory;
+  int port;
+  char *interface;
+  char *passwordFile;
+  char *workingDirectory;
+  char type;
 } ServerConfig;
 
 typedef struct {
   int operation;
   char *stash;
+  char *typeStash;
 } Stash;
 
 /*

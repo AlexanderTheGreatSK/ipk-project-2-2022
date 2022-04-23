@@ -11,6 +11,12 @@
 
 #define MAX 80
 #define PORT 115
+#define NONE -1
+#define RENAME 1
+#define SEND 2
+#define RECEIVE_NEW 3
+#define RECEIVE_OLD 4
+#define RECEIVE_APP 5
 #define SA struct sockaddr
 
 #include "serverConfig.h"
@@ -20,6 +26,7 @@ int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig);
 void printUsage();
 int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash);
 bool validPath(char* currDir ,char *path);
+void appendToFile(char *filePath, char *content);
 
 void func(int connfd)
 {
@@ -138,34 +145,45 @@ int main(int argc, char *argv[]) {
     len = sizeof(cli);
 
     // Accept the data packet from client and verification
-    /*connfd = accept(sockfd, (SA*)&cli, &len);
+    connfd = accept(sockfd, (SA*)&cli, &len);
     if (connfd < 0) {
         printf("server accept failed...\n");
         exit(0);
     }
     else
-        printf("server accept the client...\n");*/
-
-    // Function for chatting between client and server
-    //func(connfd);
+        printf("server accept the client...\n");
 
     char *line = malloc(sizeof(char) * 110);
     char *responseMessage = malloc(sizeof(char) * 1000);
     int responseCode;
 
+    strcpy(responseMessage, "+ SFTP service");
+    write(connfd, responseMessage, strlen(responseMessage));
+    strcpy(responseMessage, "");
+
     while(true) {
-        fgets(line, 100, stdin);
+      bzero(line, 110);
+      read(connfd, line, strlen(line));
+      printf("Received: %s\n", line);
+
+      if(line != NULL || strcpy(line, "") != 0) {
         responseCode = analyze(line, &user, serverConfig, responseMessage, currentDirectory, stash);
         if(responseCode == 1) {
-            break;
+          strcpy(responseMessage, "+ SFTP server closing connection");
+          write(connfd, responseMessage, strlen(responseMessage));
+          break;
         } else if(responseCode == -1) {
-            printf("Not a valid command.\n");
-            printf("Use HELP for help.\n");
-            printf("Use LET-ME-IN for help with logging in.\n");
+          printf("Not a valid command.\n");
+          printf("Use HELP for help.\n");
+          printf("Use LET-ME-IN for help with logging in.\n");
         }
         if(responseMessage != NULL) {
-            printf("Response message: |%s|\n", responseMessage);
+          printf("Response message: |%s|\n", responseMessage);
         }
+
+        write(connfd, responseMessage, strlen(responseMessage));
+      }
+
     }
 
 
@@ -425,7 +443,7 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
         }
 
         strcpy(stash->stash, split);
-        stash->operation = 1;
+        stash->operation = RENAME;
 
         strcpy(responseMessage, "+file exists");
         return 0;
@@ -438,12 +456,181 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
           return 0;
         }
 
-        if(stash->operation != 1) {
+        if(stash->operation != RENAME) {
           strcpy(responseMessage, "-file wasn't renamed because you didn't specified one with NAME");
           return 0;
         }
 
-        tu si zober stash a premenuje ten file na novy
+        strcpy(command, "mv ");
+        strcat(command, stash->stash);
+        strcat(command, " ");
+        strcat(command, split);
+
+        system(command);
+
+        strcpy(responseMessage, "+");
+        strcat(responseMessage, stash->stash);
+        strcat(responseMessage, "renamed to ");
+        strcat(responseMessage, split);
+
+        strcpy(stash->stash, "");
+        stash->operation = NONE;
+        return 0;
+      } else if(strcmp(split, "TYPE") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of TYPE: expected type");
+          return 0;
+        }
+
+        if(strcmp(split, "A") == 0) {
+          serverConfig->type = 'A';
+          strcpy(responseMessage, "+using ASCII mode");
+          return 0;
+        } else if(strcmp(split, "B") == 0) {
+          serverConfig->type = 'B';
+          strcpy(responseMessage, "+using BINARY mode");
+          return 0;
+        } else if(strcmp(split, "C") == 0) {
+          serverConfig->type = 'B';
+          strcpy(responseMessage, "+using CONTINUOUS mode");
+          return 0;
+        } else {
+          strcpy(responseMessage, "-type not valid");
+          return 0;
+        }
+      } else if(strcmp(split, "RETR") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of RETR: path to file");
+          return 0;
+        }
+
+        if(validPath(currentDirectory, split) == false) {
+          strcpy(responseMessage, "-file doesn't exist");
+          return 0;
+        }
+
+        fp = fopen(split, "r");
+        int size = 0;
+        if(fp) {
+          fseek(fp, 0L, SEEK_END);
+          size = ftell(fp);
+          rewind(fp);
+          fclose(fp);
+        } else {
+          strcpy(responseMessage, "-during reading error happened, try again");
+          return 0;
+        }
+
+        stash->operation = SEND;
+        strcpy(stash->stash, split);
+
+        sprintf(responseMessage, "%d", size);
+        return 0;
+      } else if(strcmp(split, "SEND") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of SEND: path to file");
+          return 0;
+        }
+
+        if(stash->operation != SEND) {
+          strcpy(responseMessage, "-not specified what to SEND, use RETR");
+          return 0;
+        }
+
+        //TODO add function for sending file
+
+        stash->operation = NONE;
+        strcpy(stash->stash, "");
+        return 0;
+      } else if(strcmp(split, "STOP") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of SEND: path to file");
+          return 0;
+        }
+
+        if(stash->operation != SEND) {
+          strcpy(responseMessage, "-not specified what to STOP, use RETR");
+          return 0;
+        }
+
+        stash->operation = NONE;
+        strcpy(stash->stash, "");
+        strcpy(responseMessage, "+ok, RETR aborted");
+        return 0;
+      } else if(strcmp(split, "STOR") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of STOR: missing type");
+          return 0;
+        }
+
+        if(strcmp(split, "NEW") == 0) {
+          stash->operation = RECEIVE_NEW;
+        } else if(strcmp(split, "OLD") == 0) {
+          stash->operation = RECEIVE_OLD;
+        } else if(strcmp(split, "APP") == 0) {
+          stash->operation = RECEIVE_APP;
+        } else {
+          strcpy(responseMessage, "-bad arguments of STOR: bad type");
+          return 0;
+        }
+
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of STOR: missing path");
+          return 0;
+        }
+
+        strcpy(stash->stash, split);
+
+        if(stash->operation == RECEIVE_NEW) {
+          if(validPath(currentDirectory, split)) {
+            strcpy(responseMessage, "+file exists, will create new generation of file");
+          } else {
+            strcpy(responseMessage, "+file does not exist, will create new file");
+          }
+        } else if(stash->operation == RECEIVE_OLD) {
+          if(validPath(currentDirectory, split)) {
+            strcpy(responseMessage, "+will write over old file");
+          } else {
+            strcpy(responseMessage, "+will create new file");
+          }
+        } else if(stash->operation == RECEIVE_APP) {
+          if(validPath(currentDirectory, split)) {
+            strcpy(responseMessage, "+will append to file");
+          } else {
+            strcpy(responseMessage, "+will create new file");
+          }
+        }
+        return 0;
+      } else if(strcmp(split, "SIZE") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of SIZE: missing size");
+          return 0;
+        }
+
+        //TODO malloc char*size
+        //call function to do that
+
+        strcpy(responseMessage, "+saved ");
+        strcat(responseMessage, stash->stash);
+
+        stash->operation = NONE;
+        strcpy(stash->stash, "");
+
+        return 0;
       }
 
 
@@ -537,6 +724,14 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
 
   }
   return 0;
+}
+
+void appendToFile(char *filePath, char *content) {
+  FILE *fp;
+
+  fp = fopen(filePath, "a");
+  fputs(content, fp);
+  fclose(fp);
 }
 
 bool validPath(char* currDir ,char *path) {

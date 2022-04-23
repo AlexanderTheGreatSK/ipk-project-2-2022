@@ -20,85 +20,76 @@ int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig);
 void printUsage();
 void printHelp();
 void printLetMeIn();
-int analyze(char *line, bool *loggedIn, bool *tobe, bool *send);
-
-void func(int sockfd) {
-    char buff[MAX];
-    int n;
-    for (;;) {
-        //bzero(buff, sizeof(buff));
-        printf("Enter the string : ");
-        n = 0;
-        while ((buff[n++] = getchar()) != '\n')
-            ;
-        write(sockfd, buff, sizeof(buff));
-        //bzero(buff, sizeof(buff));
-        read(sockfd, buff, sizeof(buff));
-        printf("From Server : %s", buff);
-        if ((strncmp(buff, "exit", 4)) == 0) {
-            printf("Client Exit...\n");
-            break;
-        }
-    }
-}
-
+int analyze(char *line);
 
 int main(int argc, char **argv) {
-  printf("hello from client\n");
-    int sockfd,  n;
+  int sockfd,  n;
   struct addrinfo hints;
   char buffer[256];
   struct addrinfo *result;
   struct addrinfo *rp;
   char *portA = "115";
-    int s;
+  int s;
   //char *serverIP = "fe80::f55b:6004:5817:95e5";
   char *serverIP = "2a02:8308:a085:7900:db6d:77f6:3ff0:e92a";
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-    printf("hello from client\n");
 
 
-    s = getaddrinfo(serverIP, portA, &hints, &result);
-    printf("hello from client\n");
-
-    if (s != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+  s = getaddrinfo(serverIP, portA, &hints, &result);
+  if (s != 0) {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+    return 1;
   }
-    for (rp = result; rp != NULL; rp = rp->ai_next) {
-        sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (sockfd == -1)
-            continue;
 
-        if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1)
-            break;                  /* Success */
-
-        close(sockfd);
+  for (rp = result; rp != NULL; rp = rp->ai_next) {
+    sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    if (sockfd == -1) {
+      continue;
     }
 
-    if (rp == NULL) {               /* No address succeeded */
-        fprintf(stderr, "Could not find the right address to connect\n");
-        exit(EXIT_FAILURE);
+    if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1) {
+      break;
     }
 
-    freeaddrinfo(result);
-
-    n = send(sockfd,buffer, strlen(buffer)+1, 0);
-    if(n < 0) {
-        fprintf(stderr, "ERROR writing to socket");
-    }
-
-    memset(buffer, 0, 256);
-    n = recv(sockfd, buffer, 255, 0);
-
-    if (n < 0) {
-        fprintf(stderr, "ERROR reading from socket");
-    }
-    printf("Message from server: %d bytes %s\n", n,buffer);
     close(sockfd);
-    return 0;
+  }
+
+  if (rp == NULL) {
+    fprintf(stderr, "Could not find the right address to connect\n");
+    exit(EXIT_FAILURE);
+  }
+  freeaddrinfo(result);
+
+  char *line = malloc(sizeof(char) * 110);
+  int responseCode;
+
+  while(true) {
+    memset(line, 0, 100);
+    fgets(line, 100, stdin);
+    responseCode = analyze(line);
+    if(responseCode == 1) {
+      close(sockfd);
+      break;
+    } else if(responseCode == 2) {
+      n = send(sockfd,line, strlen(line)+1, 0);
+      if(n < 0) {
+        fprintf(stderr, "ERROR writing to socket");
+      }
+
+      memset(line, 0, 100);
+      n = recv(sockfd, line, 100, 0);
+
+      if (n < 0) {
+        fprintf(stderr, "ERROR reading from socket");
+      }
+      printf("%s\n", line);
+    }
+  }
+
+  return 0;
     /*int flag_off = 0;
     int sockfd, connfd;
     struct addrinfo hints;
@@ -265,142 +256,30 @@ int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig) {
   return 0;
 }
 
-int analyze(char *line, bool *loggedIn, bool *tobe, bool *send) {
+int analyze(char *line) {
   line[strlen(line)-1] = '\0';
-  printf("|%s|\n", line);
   if(strcmp(line, "DONE") == 0) {
     return 1;
   } else if(strcmp(line, "HELP") == 0) {
     printHelp();
     return 0;
   } else if(strcmp(line, "LET-ME-IN") == 0) {
-    printUsage();
+    printLetMeIn();
     return 0;
-  }
-
-  char *split = strtok(line, " ");
-  //TODO fix tobe, set it to false after NAME and not TOBE command, and same to bool send
-  if(*loggedIn) {
-    if(strcmp(split, "USER") == 0 || strcmp(split, "ACCT") == 0 || strcmp(split, "PASS") == 0) {
-      printf("Already logged in.\n");
-      printf("For help use HELP.\n");
-      return 0;
-    } else if(strcmp(split, "LIST") == 0) {
-
-      split = strtok(NULL, " ");
-
-      if(split == NULL) {
-        return -1;
-      }
-      if(strcmp(split, "F") == 0 || strcmp(split, "V") == 0) {
-        return 0;
-      }
-
-      return -1;
-    } else if(strcmp(split, "TYPE") == 0) {
-      split = strtok(NULL, " ");
-
-      if(split == NULL) {
-        return -1;
-      }
-
-      if(strcmp(split, "A") == 0 || strcmp(split, "B") == 0 || strcmp(split, "C") == 0) {
-        return 0;
-      }
-      return -1;
-    } else if(strcmp(split, "CDIR") == 0) {
-      split = strtok(NULL, " ");
-
-      if(split == NULL) {
-        return -1;
-      }
-      return 0;
-    } else if(strcmp(split, "KILL") == 0) {
-      split = strtok(NULL, " ");
-
-      if(split != NULL) {
-        return -1;
-      }
-      return 0;
-    } else if(strcmp(split, "NAME") == 0) {
-      split = strtok(NULL, " ");
-
-      if(split != NULL) {
-        return -1;
-      }
-      *tobe = true;
-      return 0;
-    } else if(strcmp(split, "TOBE") == 0 && *tobe) {
-      split = strtok(NULL, " ");
-
-      if(split != NULL) {
-        return -1;
-      }
-      *tobe = false;
-      return 0;
-    } else if(strcmp(split, "RETR") == 0) {
-      split = strtok(NULL, " ");
-
-      if(split != NULL) {
-        return -1;
-      }
-      *send = true;
-      return 0;
-    } else if(strcmp(split, "SEND") == 0 && *send) {
-      split = strtok(NULL, " ");
-      *send = false;
-      if(split == NULL) {
-        return 0;
-      }
-      return -1;
-    } else if(strcmp(split, "STOP") == 0 && *send) {
-      split = strtok(NULL, " ");
-      *send = false;
-      if(split == NULL) {
-        return 0;
-      }
-      return -1;
-    } else if(strcmp(split, "STOR") == 0) {
-      split = strtok(NULL, " ");
-
-      if(strcmp(split, "NEW") == 0 || strcmp(split, "OLD") == 0 || strcmp(split, "APP") == 0 ) {
-        split = strtok(NULL, " ");
-
-        if(split == NULL) {
-          return -1;
-        }
-        return 0;
-      }
-      return -1;
-    } else if(strcmp(split, "SIZE") == 0) {
-      split = strtok(NULL, " ");
-      char *c;
-      int number = (int) strtol(split, &c, 10);
-      number = number;
-      if(c != NULL) {
-        return -1;
-      }
-      return 0;
-    } else {
-      return -1;
-    }
   } else {
-    if(strcmp(split, "USER") == 0 || strcmp(split, "ACCT") == 0 || strcmp(split, "PASS") == 0) {
-      split = strtok(NULL, " ");
-      if(split == NULL) {
-        return -1;
-      }
 
-      printf("OKAY\n");
-      *loggedIn = true;
-      return 0;
+    if((strcmp(line, "HOME") == 0) || (strcmp(line, "LIST") == 0) || (strcmp(line, "CDIR") == 0) ||
+      (strcmp(line, "KILL") == 0) || (strcmp(line, "NAME") == 0) || (strcmp(line, "TOBE") == 0) ||
+      (strcmp(line, "TYPE") == 0) || (strcmp(line, "RETR") == 0) || (strcmp(line, "SEND") == 0) ||
+      (strcmp(line, "STOP") == 0) || (strcmp(line, "STOR") == 0) || (strcmp(line, "SIZE") == 0)) {
+
+      return 2;
+
     } else {
-      printf("First log in.\n");
-      printf("Use LET-ME-IN to get help with log in.\n");
-      printf("More information is in the documentation.\n");
+      printf("Use command HELP for help.\n");
+      printf("Use command LET-ME-IN for help with log in.\n");
       return 0;
     }
-
   }
 }
 

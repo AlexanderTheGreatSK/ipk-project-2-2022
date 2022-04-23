@@ -12,6 +12,7 @@ void initConfig(ServerConfig *serverConfig) {
   strcpy(serverConfig->interface, "eth0");
   strcpy(serverConfig->passwordFile, "");
   strcpy(serverConfig->workingDirectory, "");
+  serverConfig->type = 'B';
 }
 
 void destroyConfig(ServerConfig **serverConfig) {
@@ -30,24 +31,30 @@ void debugPrintConfig(ServerConfig **serverConfig) {
   printf("Interface: %s\n", (*serverConfig)->interface);
   printf("Passwords: %s\n", (*serverConfig)->passwordFile);
   printf("Working directory: %s\n", (*serverConfig)->workingDirectory);
+  printf("Type: %c\n", (*serverConfig)->type);
 }
 
 void initStash(Stash *stash) {
   stash->stash = malloc(sizeof(char) * 1000);
+  stash->typeStash = malloc(sizeof(char) * 1000);
   stash->operation = -1;
   strcpy(stash->stash, "");
+  strcpy(stash->typeStash, "");
 }
 
 void destroyStash(Stash **stash) {
   free((*stash)->stash);
+  free((*stash)->typeStash);
 
   (*stash)->stash = NULL;
+  (*stash)->typeStash = NULL;
   (*stash)->operation = -1;
 }
 
 void debugPrintStash(Stash **stash) {
 
   printf("Stash: %s\n", (*stash)->stash);
+  printf("Type stash: %s\n", (*stash)->typeStash);
   printf("Operation: %d\n", (*stash)->operation);
 
 }

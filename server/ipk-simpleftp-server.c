@@ -51,6 +51,30 @@ void func(int connfd)
 int main(int argc, char *argv[]) {
   printf("hello from server\n");
 
+  ServerConfig *serverConfig = malloc(sizeof(ServerConfig));
+  initConfig(serverConfig);
+
+  User *user = malloc(sizeof(User));
+  initUser(user);
+
+  int rc = argumentHandler(argc, argv, serverConfig);
+  printf("%d\n", rc);
+  if(rc == 1) {
+    printf("Bad arguments.\n");
+    printf("Use parameter -h to get help.\n");
+    destroyConfig(&serverConfig);
+    free(serverConfig);
+    return 1;
+  } else if(rc == 2) {
+    destroyConfig(&serverConfig);
+    free(serverConfig);
+    return 0;
+  }
+  if(chechUserpassPath(serverConfig->passwordFile) == false) {
+    printf("File does not exist.\n");
+    return 1;
+  }
+
     int sockfd, connfd, len;
     struct sockaddr_in6 servaddr, cli;
     int flag = 1;
@@ -64,30 +88,24 @@ int main(int argc, char *argv[]) {
     }
     else
         printf("Socket successfully created..\n");
-    
-const char *opt;
-opt = "enp0s3";
-int len6 = 6;
-
 
     if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&flag,sizeof(flag)) < 0)
       fprintf(stderr, "ERROR setting REUSE socket option") ;
 
     bzero((char *) &servaddr, sizeof(servaddr));
 
-    /*if((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) == -1)){
+    if((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) == -1)){
         fprintf(stderr, "setsockopt failed (reuseaddr)\n");
-    }*/
+    }
+  printf("hello from server\n");
 
-    /*if ((setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, (char *) &opt, strlen(opt))) == -1) {
+    if ((setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, "enp2s0", strlen("enp2s0"))) == -1) {
         fprintf(stderr, "setsockopt failed (INTERFACE)\n");
-    }*/
+    }
 
-    /*if(setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &flag_off, sizeof(flag_off)) == -1){
+  if(setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &flag_off, sizeof(flag_off)) == -1){
         fprintf(stderr,"setsockopt failed (v6only)\n");
-    }*/
-
-
+    }
 
     //bzero(&servaddr, sizeof(servaddr));
 
@@ -132,33 +150,13 @@ int len6 = 6;
     close(sockfd);
     return 0;
 
-  /*ServerConfig *serverConfig = malloc(sizeof(ServerConfig));
-  initConfig(serverConfig);
 
-  User *user = malloc(sizeof(User));
-  initUser(user);
-  char server_message[2000], client_message[2000];
+  /*char server_message[2000], client_message[2000];
   int socket_desc, client_sock;
   socklen_t *client_size;
   struct sockaddr_in server_addr, client_addr;
 
-  int rc = argumentHandler(argc, argv, serverConfig);
-  printf("%d\n", rc);
-  if(rc == 1) {
-    printf("Bad arguments.\n");
-    printf("Use parameter -h to get help.\n");
-    destroyConfig(&serverConfig);
-    free(serverConfig);
-    return 1;
-  } else if(rc == 2) {
-    destroyConfig(&serverConfig);
-    free(serverConfig);
-    return 0;
-  }
-  if(chechUserpassPath(serverConfig->passwordFile) == false) {
-    printf("File does not exist.\n");
-    return 1;
-  }
+
 
   char *line = malloc(sizeof(char) * 1000);
   socket_desc = socket(AF_INET, SOCK_STREAM, 0);

@@ -31,3 +31,23 @@ void debugPrintConfig(ServerConfig **serverConfig) {
   printf("Passwords: %s\n", (*serverConfig)->passwordFile);
   printf("Working directory: %s\n", (*serverConfig)->workingDirectory);
 }
+
+void initStash(Stash *stash) {
+  stash->stash = malloc(sizeof(char) * 1000);
+  stash->operation = -1;
+  strcpy(stash->stash, "");
+}
+
+void destroyStash(Stash **stash) {
+  free((*stash)->stash);
+
+  (*stash)->stash = NULL;
+  (*stash)->operation = -1;
+}
+
+void debugPrintStash(Stash **stash) {
+
+  printf("Stash: %s\n", (*stash)->stash);
+  printf("Operation: %d\n", (*stash)->operation);
+
+}

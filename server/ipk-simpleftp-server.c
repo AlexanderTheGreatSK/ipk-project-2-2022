@@ -18,7 +18,7 @@
 
 int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig);
 void printUsage();
-int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory);
+int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash);
 bool validPath(char* currDir ,char *path);
 
 void func(int connfd)
@@ -54,7 +54,9 @@ int main(int argc, char *argv[]) {
   printf("hello from server\n");
   char *currentDirectory = malloc(sizeof(char) * 1000);
   ServerConfig *serverConfig = malloc(sizeof(ServerConfig));
+  Stash *stash = malloc(sizeof(Stash));
   initConfig(serverConfig);
+  initStash(stash);
 
   User *user = malloc(sizeof(User));
   initUser(user);
@@ -153,7 +155,7 @@ int main(int argc, char *argv[]) {
 
     while(true) {
         fgets(line, 100, stdin);
-        responseCode = analyze(line, &user, serverConfig, responseMessage, currentDirectory);
+        responseCode = analyze(line, &user, serverConfig, responseMessage, currentDirectory, stash);
         if(responseCode == 1) {
             break;
         } else if(responseCode == -1) {
@@ -172,6 +174,12 @@ int main(int argc, char *argv[]) {
     free(line);
     free(responseMessage);
     free(currentDirectory);
+    destroyConfig(&serverConfig);
+    destroyUser(&user);
+    free(user);
+    free(serverConfig);
+    destroyStash(&stash);
+    free(stash);
     return 0;
 
 
@@ -244,7 +252,7 @@ int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig) {
   return 0;
 }
 
-int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory) {
+int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash) {
   strcpy(responseMessage, "\0");
   printf("CURR WD:|%s|\n", currentDirectory);
   line[strlen(line)-1] = '\0';
@@ -402,6 +410,40 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
             return 0;
           }
         }
+      } else if(strcmp(split, "NAME") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of NAME: expected path");
+          return 0;
+        }
+
+        if(validPath(currentDirectory, split) == false) {
+          strcpy(responseMessage, "-can't find file ");
+          strcat(responseMessage, split);
+          return 0;
+        }
+
+        strcpy(stash->stash, split);
+        stash->operation = 1;
+
+        strcpy(responseMessage, "+file exists");
+        return 0;
+
+      } else if(strcmp(split, "TOBE") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of TOBE: expected path");
+          return 0;
+        }
+
+        if(stash->operation != 1) {
+          strcpy(responseMessage, "-file wasn't renamed because you didn't specified one with NAME");
+          return 0;
+        }
+
+        tu si zober stash a premenuje ten file na novy
       }
 
 

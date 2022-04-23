@@ -89,6 +89,7 @@ bool chechUserpassPath(char *userpassPath) {
 
   fp = fopen(userpassPath, "r");
 
+
   if(!fp) {
     return false;
   } else {

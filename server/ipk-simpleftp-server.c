@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #define MAX 80
 #define PORT 115
@@ -17,7 +18,8 @@
 
 int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig);
 void printUsage();
-int analyze(char *line, User **user, ServerConfig *serverConfig);
+int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory);
+bool validPath(char* currDir ,char *path);
 
 void func(int connfd)
 {
@@ -50,7 +52,7 @@ void func(int connfd)
 
 int main(int argc, char *argv[]) {
   printf("hello from server\n");
-
+  char *currentDirectory = malloc(sizeof(char) * 1000);
   ServerConfig *serverConfig = malloc(sizeof(ServerConfig));
   initConfig(serverConfig);
 
@@ -58,7 +60,7 @@ int main(int argc, char *argv[]) {
   initUser(user);
 
   int rc = argumentHandler(argc, argv, serverConfig);
-  printf("%d\n", rc);
+  strcpy(currentDirectory, serverConfig->workingDirectory);
   if(rc == 1) {
     printf("Bad arguments.\n");
     printf("Use parameter -h to get help.\n");
@@ -97,9 +99,8 @@ int main(int argc, char *argv[]) {
     if((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) == -1)){
         fprintf(stderr, "setsockopt failed (reuseaddr)\n");
     }
-  printf("hello from server\n");
 
-    if ((setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, "enp2s0", strlen("enp2s0"))) == -1) {
+    if ((setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, "enp7s0", strlen("enp7s0"))) == -1) {
         fprintf(stderr, "setsockopt failed (INTERFACE)\n");
     }
 
@@ -135,79 +136,47 @@ int main(int argc, char *argv[]) {
     len = sizeof(cli);
 
     // Accept the data packet from client and verification
-    connfd = accept(sockfd, (SA*)&cli, &len);
+    /*connfd = accept(sockfd, (SA*)&cli, &len);
     if (connfd < 0) {
         printf("server accept failed...\n");
         exit(0);
     }
     else
-        printf("server accept the client...\n");
+        printf("server accept the client...\n");*/
 
     // Function for chatting between client and server
-    func(connfd);
+    //func(connfd);
+
+    char *line = malloc(sizeof(char) * 110);
+    char *responseMessage = malloc(sizeof(char) * 1000);
+    int responseCode;
+
+    while(true) {
+        fgets(line, 100, stdin);
+        responseCode = analyze(line, &user, serverConfig, responseMessage, currentDirectory);
+        if(responseCode == 1) {
+            break;
+        } else if(responseCode == -1) {
+            printf("Not a valid command.\n");
+            printf("Use HELP for help.\n");
+            printf("Use LET-ME-IN for help with logging in.\n");
+        }
+        if(responseMessage != NULL) {
+            printf("Response message: |%s|\n", responseMessage);
+        }
+    }
+
 
     // After chatting close the socket
     close(sockfd);
+    free(line);
+    free(responseMessage);
+    free(currentDirectory);
     return 0;
 
 
-  /*char server_message[2000], client_message[2000];
-  int socket_desc, client_sock;
-  socklen_t *client_size;
-  struct sockaddr_in server_addr, client_addr;
 
-
-
-  char *line = malloc(sizeof(char) * 1000);
-  socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(2000);
-  server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-  if(bind(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
-      printf("Couldn't bind to the port\n");
-      return -1;
-  }
-  printf("Done with binding\n");
-
-  if(listen(socket_desc, 1) < 0){
-      printf("Error while listening\n");
-      return -1;
-  }
-  printf("\nListening for incoming connections.....\n");
-
-  client_size = (socklen_t *) sizeof(client_addr);
-  client_sock = accept(socket_desc, (struct sockaddr*)&client_addr, client_size);
-
-    if (client_size == 0){
-        printf("Can't accept\n");
-        return -1;
-    }
-    printf("Client connected at IP: %s and port: %i\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-
-    // Receive client's message:
-    if (recv(client_sock, client_message, sizeof(client_message), 0) < 0){
-        printf("Couldn't receive\n");
-        return -1;
-    }
-    printf("Msg from client: %s\n", client_message);
-
-    // Respond to client:
-    strcpy(server_message, "This is the server's message.");
-
-    if (send(client_sock, server_message, strlen(server_message), 0) < 0){
-        printf("Can't send\n");
-        return -1;
-    }
-
-    // Closing the socket:
-    close(client_sock);
-    close(socket_desc);
-
-    return 0;
-
-
-  while(true) {
+  /*while(true) {
     fgets(line, 1000, stdin);
     rc = analyze(line, &user, serverConfig);
     if(rc == 1) {
@@ -231,19 +200,6 @@ int main(int argc, char *argv[]) {
     printf("%s is not in file.\n", pass);
   }*/
 
-  /*char *line = malloc(sizeof(char) * 110);
-  int responseCode;*/
-  /*while(true) {
-    fgets(line, 100, stdin);
-    responseCode = analyze(line, &loggedIn, &tobe, &send);
-    if(responseCode == 1) {
-      break;
-    } else if(responseCode == -1) {
-      printf("Not a valid command.\n");
-      printf("Use HELP for help.\n");
-      printf("Use LET-ME-IN for help with logging in.\n");
-    }
-  }*/
 /*
   free(line);
   destroyConfig(&serverConfig);
@@ -288,14 +244,166 @@ int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig) {
   return 0;
 }
 
-int analyze(char *line, User **user, ServerConfig *serverConfig) {
+int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory) {
+  strcpy(responseMessage, "\0");
+  printf("CURR WD:|%s|\n", currentDirectory);
   line[strlen(line)-1] = '\0';
-  printf("|%s|\n", line);
+    FILE *fp;
+    char command[100];
   if(strcmp(line, "DONE") == 0) {
     return 1;
   }
   char *split = strtok(line, " ");
   if((*user)->loggedIn) {
+      if(strcmp(split, "LIST") == 0) {
+          split = strtok(NULL, " ");
+          int mode = -1;
+
+          if(split == NULL) {
+            strcpy(responseMessage, "-bad arguments of LIST: expected F or V");
+            return 0;
+          }
+
+          if(strcmp(split, "F") == 0) {
+            mode = 1;
+          } else if(strcmp(split, "V") == 0) {
+            mode = 2;
+          } else {
+            strcpy(responseMessage, "-bad arguments of LIST: expected F or V");
+            return 0;
+          }
+          split = strtok(NULL, " ");
+          if(mode == 1) {
+              if (split == NULL) {
+                sprintf(command, "ls -w 1 %s", currentDirectory);
+                fp = popen(command, "r");
+              } else {
+                if(validPath(currentDirectory,split) == false) {
+                  printf("Bad path to directory.");
+                  strcpy(responseMessage, "-directory or file does not exists");
+                  return 0;
+                }
+
+                  sprintf(command, "ls -w 1 %s", split);
+                  fp = popen(command, "r");
+              }
+          } else {
+              if (split == NULL) {
+                sprintf(command, "ls -l %s", currentDirectory);
+                fp = popen(command, "r");
+              } else {
+
+                if(validPath(currentDirectory, split) == false) {
+                  strcpy(responseMessage, "-bad directory path");
+                  return 0;
+                }
+
+                  sprintf(command, "ls -l %s", split);
+                  fp = popen(command, "r");
+              }
+          }
+        char buff[100];
+        while (fgets(buff, 100, fp) != NULL) {
+          strcat(responseMessage, buff);
+        }
+        return 0;
+      } else if(strcmp(split, "CDIR") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of CDIR: expected path");
+          return 0;
+        }
+
+        if(validPath(currentDirectory,split) == false) {
+          strcpy(responseMessage, "-bad directory path");
+          return 0;
+        }
+
+        if(split[0] ==  '/') {
+          strcpy(currentDirectory, split);
+          strcpy(responseMessage, "!changed working dir to ");
+          strcat(responseMessage, split);
+          return 0;
+        } else if(strcmp(split, "..") == 0) {
+          int index = strlen(currentDirectory)-2;
+
+          while(index >= 0) {
+            if(currentDirectory[index] == '/') {
+              currentDirectory[index] = '\0';
+              break;
+            } else if(index == 0) {
+              strcpy(currentDirectory, "/");
+            }
+            index--;
+          }
+
+          strcpy(responseMessage, "!changed working dir to ");
+          strcat(responseMessage, currentDirectory);
+          return 0;
+
+        } else if(strcmp(split, ".") == 0) {
+          strcpy(responseMessage, "!changed working dir to ");
+          strcat(responseMessage, currentDirectory);
+          return 0;
+        } else {
+          int len = strlen(currentDirectory);
+          if(currentDirectory[len-1] != '/') {
+            strcat(currentDirectory, "/");
+          }
+
+          strcat(currentDirectory, split);
+          strcpy(responseMessage, "!changed working dir to ");
+          strcat(responseMessage, split);
+          return 0;
+        }
+
+      } else if(strcmp(split, "HOME") == 0) {
+        strcpy(currentDirectory, serverConfig->workingDirectory);
+        strcpy(responseMessage, "+changed to basic working directory");
+        return 0;
+      } else if(strcmp(split, "KILL") == 0) {
+        split = strtok(NULL, " ");
+
+        if(split == NULL) {
+          strcpy(responseMessage, "-bad arguments of KILL: expected path");
+          return 0;
+        }
+
+        if(validPath(currentDirectory, split) == false) {
+          strcpy(responseMessage, "-not deleted because file does not exist");
+          return 0;
+        } else {
+
+          if(split[0] ==  '/') {
+            sprintf(command, "rm -r ");
+            strcat(command, split);
+            system(command);
+
+            strcpy(responseMessage, "+");
+            strcat(responseMessage, split);
+            strcat(responseMessage, " deleted");
+
+            return 0;
+          } else {
+            int len = strlen(currentDirectory);
+            if(currentDirectory[len-1] != '/') {
+              strcat(currentDirectory, "/");
+            }
+
+            strcpy(command, "rm -r ");
+            strcat(command, currentDirectory);
+            strcat(command, split);
+            system(command);
+
+            strcpy(responseMessage, "+");
+            strcat(responseMessage, split);
+            strcat(responseMessage, " deleted");
+            return 0;
+          }
+        }
+      }
+
 
   } else {
     if(strcmp(split, "USER") == 0) {
@@ -311,22 +419,21 @@ int analyze(char *line, User **user, ServerConfig *serverConfig) {
 
           if(namePasswordValidation((*user)->name, (*user)->password, serverConfig->passwordFile)) {
             (*user)->loggedIn = true;
-            //send no password needed
-            printf("logged in\n");
+            strcpy(responseMessage, "! ");
+            strcat(responseMessage, split);
+            strcat(responseMessage, " logged in");
             return 0;
           } else {
-            printf("bad validation\n");
+            strcpy(responseMessage, "-invalid user-id");
             return 0;
           }
 
         } else {
-          printf("now send password\n");
+          strcpy(responseMessage, "+user-id valid");
           return 0;
-          //send +Valid user
         }
       }
-      printf("bad user id\n");
-      //send -Invalid
+      strcpy(responseMessage, "-invalid user-id");
       return 0;
     } else if(strcmp(split, "ACCT") == 0) {
       split = strtok(NULL, " ");
@@ -341,23 +448,20 @@ int analyze(char *line, User **user, ServerConfig *serverConfig) {
 
           if(namePasswordValidation((*user)->name, (*user)->password, serverConfig->passwordFile)) {
             (*user)->loggedIn = true;
-            printf("loged in\n");
+            strcpy(responseMessage, "!account valid");
             return 0;
-            //send no password needed
           } else {
-            printf("bad pasword\n");
+            strcpy(responseMessage, "-invalid account");
             return 0;
           }
 
         } else {
           printf("now send password\n");
+          strcpy(responseMessage, "+account valid");
           return 0;
-          //send +Valid user
         }
-        return 0;
       }
-      printf("bad user ID\n");
-      //send -Invalid
+      strcpy(responseMessage, "-invalid account");
       return 0;
 
     } else if(strcmp(split, "PASS") == 0) {
@@ -373,30 +477,60 @@ int analyze(char *line, User **user, ServerConfig *serverConfig) {
 
           if(namePasswordValidation((*user)->name, (*user)->password, serverConfig->passwordFile)) {
             (*user)->loggedIn = true;
-            printf("logged in\n");
+            strcpy(responseMessage, "!logged in");
             return 0;
-            //logged in
           } else {
-            printf("Bad password\n");
+            strcpy(responseMessage, "-wrong password");
             return 0;
-            // bad password
           }
         }
-        printf("Good but send user ID\n");
-        return 0;
-        //good but send user id
+        strcpy(responseMessage, "+send account");
         return 0;
       }
-
-      printf("bad password\n");
-      // bad password
+      strcpy(responseMessage, "-wrong password");
       return 0;
     } else {
-      printf("First log in.\n");
+      strcpy(responseMessage, "-first log in");
     }
 
   }
   return 0;
+}
+
+bool validPath(char* currDir ,char *path) {
+  char buff[100];
+  int len;
+  FILE *f;
+  DIR *d;
+
+  len = strlen(currDir);
+  strcpy(buff, currDir);
+
+  if (path[0] != '/') {
+    if(currDir[len - 1] == '/') {
+      strcat(buff, path);
+    } else {
+      strcat(buff, "/");
+      strcat(buff, path);
+    }
+  } else {
+    strcpy(buff, path);
+  }
+
+  f = fopen(buff, "r");
+  if(f) {
+    fclose(f);
+    return true;
+  } else {
+    d = opendir(buff);
+    if(d) {
+      closedir(d);
+      return true;
+    } else {
+      return false;
+    }
+
+  }
 }
 
 //Printing zone

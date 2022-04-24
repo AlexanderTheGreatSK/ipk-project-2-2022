@@ -119,7 +119,6 @@ int main(int argc, char *argv[]) {
 
     //bzero(&servaddr, sizeof(servaddr));
 
-    // assign IP, PORT
     memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin6_family = AF_INET6;
     servaddr.sin6_addr = in6addr_any;
@@ -127,50 +126,47 @@ int main(int argc, char *argv[]) {
     servaddr.sin6_scope_id = 0;
     servaddr.sin6_flowinfo = 0;
 
-    // Binding newly created socket to given IP and verification
     if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
         printf("socket bind failed...\n");
         exit(0);
     }
-    else
-        printf("Socket successfully binded..\n");
+    else {
+      printf("Socket successfully binded..\n");
+    }
 
-    // Now server is ready to listen and verification
     if ((listen(sockfd, SOMAXCONN)) != 0) {
         printf("Listen failed...\n");
         exit(0);
+    } else {
+      printf("Server listening..\n");
     }
-    else
-        printf("Server listening..\n");
+
     len = sizeof(cli);
 
-    // Accept the data packet from client and verification
     connfd = accept(sockfd, (SA*)&cli, &len);
     if (connfd < 0) {
         printf("server accept failed...\n");
         exit(0);
+    } else {
+      printf("server accept the client...\n");
     }
-    else
-        printf("server accept the client...\n");
 
     char *line = malloc(sizeof(char) * 110);
     char *responseMessage = malloc(sizeof(char) * 1000);
     int responseCode;
 
     strcpy(responseMessage, "+ SFTP service");
-    write(connfd, responseMessage, strlen(responseMessage));
+    send(connfd, responseMessage, strlen(responseMessage), 0);
     strcpy(responseMessage, "");
 
     while(true) {
-      bzero(line, 110);
-      read(connfd, line, strlen(line));
+      recv(connfd, line, 100, 0);
       printf("Received: %s\n", line);
 
-      if(line != NULL || strcpy(line, "") != 0) {
         responseCode = analyze(line, &user, serverConfig, responseMessage, currentDirectory, stash);
         if(responseCode == 1) {
           strcpy(responseMessage, "+ SFTP server closing connection");
-          write(connfd, responseMessage, strlen(responseMessage));
+          send(connfd, responseMessage, strlen(responseMessage),0);
           break;
         } else if(responseCode == -1) {
           printf("Not a valid command.\n");
@@ -180,9 +176,7 @@ int main(int argc, char *argv[]) {
         if(responseMessage != NULL) {
           printf("Response message: |%s|\n", responseMessage);
         }
-
-        write(connfd, responseMessage, strlen(responseMessage));
-      }
+        send(connfd, responseMessage, strlen(responseMessage), 0);
 
     }
 
@@ -273,7 +267,7 @@ int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig) {
 int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash) {
   strcpy(responseMessage, "\0");
   printf("CURR WD:|%s|\n", currentDirectory);
-  line[strlen(line)-1] = '\0';
+  //line[strlen(line)-1] = '\0';
     FILE *fp;
     char command[100];
   if(strcmp(line, "DONE") == 0) {
@@ -332,6 +326,7 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
         while (fgets(buff, 100, fp) != NULL) {
           strcat(responseMessage, buff);
         }
+        responseMessage[strlen(responseMessage)-1] = '\0';
         return 0;
       } else if(strcmp(split, "CDIR") == 0) {
         split = strtok(NULL, " ");
@@ -637,6 +632,7 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
   } else {
     if(strcmp(split, "USER") == 0) {
       split = strtok(NULL, " ");
+      printf("%s\n", split);
       if(split == NULL) {
         return -1;
       }

@@ -31,7 +31,28 @@ int main(int argc, char **argv) {
   char *portA = "115";
   int s;
   //char *serverIP = "fe80::f55b:6004:5817:95e5";
-  char *serverIP = "2a02:8308:a085:7900:db6d:77f6:3ff0:e92a";
+
+  ClientConfig *clientConfig = malloc(sizeof(ClientConfig));
+  initConfig(clientConfig);
+
+  printf("sdada\n");
+
+  int rc = argumentHandler(argc, argv, clientConfig);
+
+  if(rc == 1) {
+    printf("Bad arguments.\n");
+    printf("Use parameter -H to get help.\n");
+    destroyConfig(&clientConfig);
+    free(clientConfig);
+    return 1;
+  } else if(rc == 2) {
+    destroyConfig(&clientConfig);
+    free(clientConfig);
+    return 0;
+  }
+
+  //char *serverIP = "2a02:8308:a085:7900:db6d:77f6:3ff0:e92a";
+  char *serverIP = "2a02:8308:a085:7900:eb66:11c6:3aa3:4feb";
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = AF_UNSPEC;
@@ -63,12 +84,24 @@ int main(int argc, char **argv) {
   }
   freeaddrinfo(result);
 
+
+
   char *line = malloc(sizeof(char) * 110);
   int responseCode;
+
+
+  n = recv(sockfd, line, 100, 0);
+  if (n < 0) {
+    fprintf(stderr, "ERROR reading from socket");
+    return 1;
+  }
+
+  printf("%s\n", line);
 
   while(true) {
     memset(line, 0, 100);
     fgets(line, 100, stdin);
+    line[strlen(line)-1] = '\0';
     responseCode = analyze(line);
     if(responseCode == 1) {
       close(sockfd);
@@ -84,6 +117,7 @@ int main(int argc, char **argv) {
 
       if (n < 0) {
         fprintf(stderr, "ERROR reading from socket");
+        return 1;
       }
       printf("%s\n", line);
     }
@@ -257,7 +291,6 @@ int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig) {
 }
 
 int analyze(char *line) {
-  line[strlen(line)-1] = '\0';
   if(strcmp(line, "DONE") == 0) {
     return 1;
   } else if(strcmp(line, "HELP") == 0) {
@@ -267,14 +300,15 @@ int analyze(char *line) {
     printLetMeIn();
     return 0;
   } else {
-
-    if((strcmp(line, "HOME") == 0) || (strcmp(line, "LIST") == 0) || (strcmp(line, "CDIR") == 0) ||
-      (strcmp(line, "KILL") == 0) || (strcmp(line, "NAME") == 0) || (strcmp(line, "TOBE") == 0) ||
-      (strcmp(line, "TYPE") == 0) || (strcmp(line, "RETR") == 0) || (strcmp(line, "SEND") == 0) ||
-      (strcmp(line, "STOP") == 0) || (strcmp(line, "STOR") == 0) || (strcmp(line, "SIZE") == 0)) {
-
+    char buff[100];
+    strcpy(buff, line);
+    char *split = strtok(buff, " ");
+    if((strcmp(split, "HOME") == 0) || (strcmp(split, "LIST") == 0) || (strcmp(split, "CDIR") == 0) ||
+      (strcmp(split, "KILL") == 0) || (strcmp(split, "NAME") == 0) || (strcmp(split, "TOBE") == 0) ||
+      (strcmp(split, "TYPE") == 0) || (strcmp(split, "RETR") == 0) || (strcmp(split, "SEND") == 0) ||
+      (strcmp(split, "STOP") == 0) || (strcmp(split, "STOR") == 0) || (strcmp(split, "SIZE") == 0) ||
+      (strcmp(split, "USER") == 0) || (strcmp(split, "ACCT") == 0) || (strcmp(split, "PASS") == 0)) {
       return 2;
-
     } else {
       printf("Use command HELP for help.\n");
       printf("Use command LET-ME-IN for help with log in.\n");

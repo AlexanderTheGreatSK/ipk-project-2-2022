@@ -4,12 +4,10 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <signal.h>
 
-#define MAX 80
 #define PORT 115
 #define NONE -1
 #define RENAME 1
@@ -24,41 +22,20 @@
 
 int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig);
 void printUsage();
-int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash);
+int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash, int sockfd);
 bool validPath(char* currDir ,char *path);
 void appendToFile(char *filePath, char *content);
 
-void func(int connfd)
-{
-    char buff[MAX];
-    int n;
-    // infinite loop for chat
-    for (;;) {
-        bzero(buff, MAX);
-
-        // read the message from client and copy it in buffer
-        read(connfd, buff, sizeof(buff));
-        // print buffer which contains the client contents
-        printf("From client: %s\t To client : ", buff);
-        bzero(buff, MAX);
-        n = 0;
-        // copy server message in the buffer
-        while ((buff[n++] = getchar()) != '\n')
-            ;
-
-        // and send that buffer to client
-        write(connfd, buff, sizeof(buff));
-
-        // if msg contains "Exit" then server exit and chat ended.
-        if (strncmp("exit", buff, 4) == 0) {
-            printf("Server Exit...\n");
-            break;
-        }
-    }
+void catchSignal(int signal) {
+  if (signal == SIGINT) {
+    close(PORT);
+    exit(0);
+  }
 }
 
 int main(int argc, char *argv[]) {
-  printf("hello from server\n");
+  int sockfd, connfd, len;
+  signal(SIGINT, catchSignal);
   char *currentDirectory = malloc(sizeof(char) * 1000);
   ServerConfig *serverConfig = malloc(sizeof(ServerConfig));
   Stash *stash = malloc(sizeof(Stash));
@@ -70,163 +47,124 @@ int main(int argc, char *argv[]) {
 
   int rc = argumentHandler(argc, argv, serverConfig);
   strcpy(currentDirectory, serverConfig->workingDirectory);
-  if(rc == 1) {
+  if (rc == 1) {
     printf("Bad arguments.\n");
     printf("Use parameter -h to get help.\n");
     destroyConfig(&serverConfig);
     free(serverConfig);
     return 1;
-  } else if(rc == 2) {
+  } else if (rc == 2) {
     destroyConfig(&serverConfig);
     free(serverConfig);
     return 0;
   }
-  if(chechUserpassPath(serverConfig->passwordFile) == false) {
+  if (chechUserpassPath(serverConfig->passwordFile) == false) {
     printf("File does not exist.\n");
     return 1;
   }
 
-    int sockfd, connfd, len;
-    struct sockaddr_in6 servaddr, cli;
-    int flag = 1;
-    int flag_off = 0;
+  struct sockaddr_in6 servaddr, cli;
+  int flagOn = 1;
+  int flagOff = 0;
+  int r;
 
-    // socket create and verification
+  char *line = malloc(sizeof(char) * 110);
+  char *responseMessage = malloc(sizeof(char) * 2000);
+  int responseCode;
+
+  while(true) {
+
+
     sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == -1) {
-        printf("socket creation failed...\n");
-        exit(0);
-    }
-    else
-        printf("Socket successfully created..\n");
+      printf("socket creation failed...\n");
+      exit(0);
+    } else
+      printf("Socket successfully created..\n");
 
-    if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&flag,sizeof(flag)) < 0)
-      fprintf(stderr, "ERROR setting REUSE socket option") ;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &flagOn, sizeof(flagOn)) < 0)
+      fprintf(stderr, "ERROR setting REUSE socket option");
 
     bzero((char *) &servaddr, sizeof(servaddr));
 
-    if((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) == -1)){
-        fprintf(stderr, "setsockopt failed (reuseaddr)\n");
+    if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &flagOn, sizeof(flagOn)) == -1)) {
+      fprintf(stderr, "setsockopt failed (reuseaddr)\n");
     }
 
-    if ((setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, "enp7s0", strlen("enp7s0"))) == -1) {
-        fprintf(stderr, "setsockopt failed (INTERFACE)\n");
+    if ((setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, serverConfig->interface, strlen(serverConfig->interface))) ==
+        -1) {
+      fprintf(stderr, "setsockopt failed (INTERFACE)\n");
     }
 
-  if(setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &flag_off, sizeof(flag_off)) == -1){
-        fprintf(stderr,"setsockopt failed (v6only)\n");
+    if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &flagOff, sizeof(flagOff)) == -1) {
+      fprintf(stderr, "setsockopt failed (v6only)\n");
     }
-
-    //bzero(&servaddr, sizeof(servaddr));
 
     memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin6_family = AF_INET6;
     servaddr.sin6_addr = in6addr_any;
-    servaddr.sin6_port = htons(PORT);
+    servaddr.sin6_port = htons(serverConfig->port);
     servaddr.sin6_scope_id = 0;
     servaddr.sin6_flowinfo = 0;
 
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
-        printf("socket bind failed...\n");
-        exit(0);
-    }
-    else {
+    if ((bind(sockfd, (SA *) &servaddr, sizeof(servaddr))) != 0) {
+      printf("socket bind failed...\n");
+      exit(0);
+    } else {
       printf("Socket successfully binded..\n");
     }
 
     if ((listen(sockfd, SOMAXCONN)) != 0) {
-        printf("Listen failed...\n");
-        exit(0);
+      printf("Listen failed...\n");
+      exit(0);
     } else {
       printf("Server listening..\n");
     }
 
     len = sizeof(cli);
-
-    connfd = accept(sockfd, (SA*)&cli, &len);
+    connfd = accept(sockfd, (SA *) &cli, &len);
     if (connfd < 0) {
-        printf("server accept failed...\n");
-        exit(0);
+      printf("server accept failed...\n");
+      exit(0);
     } else {
       printf("server accept the client...\n");
     }
-
-    char *line = malloc(sizeof(char) * 110);
-    char *responseMessage = malloc(sizeof(char) * 1000);
-    int responseCode;
-
-    strcpy(responseMessage, "+ SFTP service");
+    strcpy(responseMessage, "+welcome, SFTP service active");
     send(connfd, responseMessage, strlen(responseMessage), 0);
     strcpy(responseMessage, "");
+    while (true) {
 
-    while(true) {
-      recv(connfd, line, 100, 0);
-      printf("Received: %s\n", line);
+      r = recv(connfd, line, 100, 0);
+      if (r < 0) {
+        fprintf(stderr, "ERROR.\n");
+        break;
+      }
 
-        responseCode = analyze(line, &user, serverConfig, responseMessage, currentDirectory, stash);
-        if(responseCode == 1) {
-          strcpy(responseMessage, "+ SFTP server closing connection");
-          send(connfd, responseMessage, strlen(responseMessage),0);
-          break;
-        } else if(responseCode == -1) {
-          printf("Not a valid command.\n");
-          printf("Use HELP for help.\n");
-          printf("Use LET-ME-IN for help with logging in.\n");
-        }
-        if(responseMessage != NULL) {
-          printf("Response message: |%s|\n", responseMessage);
-        }
-        send(connfd, responseMessage, strlen(responseMessage), 0);
+      printf("%s\n", line);
 
+      if (r == 0) {
+        break;
+      }
+
+      responseCode = analyze(line, &user, serverConfig, responseMessage, currentDirectory, stash, sockfd);
+      printf("%s\n", responseMessage);
+      r = send(connfd, responseMessage, strlen(responseMessage), 0);
+      if (r < 0) {
+        break;
+      }
     }
-
-
-    // After chatting close the socket
-    close(sockfd);
-    free(line);
-    free(responseMessage);
-    free(currentDirectory);
-    destroyConfig(&serverConfig);
-    destroyUser(&user);
-    free(user);
-    free(serverConfig);
-    destroyStash(&stash);
-    free(stash);
-    return 0;
-
-
-
-  /*while(true) {
-    fgets(line, 1000, stdin);
-    rc = analyze(line, &user, serverConfig);
-    if(rc == 1) {
-      break;
-    }
-    debugPrintUser(&user);
-  }*/
-
-  /*char *name = "kk";
-
-  if(usernameAuth(name, serverConfig->passwordFile)) {
-    printf("%s is in file.\n", name);
-  } else {
-    printf("%s is not in file.\n", name);
   }
-
-  char *pass = "heslo";
-  if(passwordAuth(pass, serverConfig->passwordFile)) {
-    printf("%s is in file.\n", pass);
-  } else {
-    printf("%s is not in file.\n", pass);
-  }*/
-
-/*
+  close(sockfd);
   free(line);
+  free(responseMessage);
+  free(currentDirectory);
   destroyConfig(&serverConfig);
   destroyUser(&user);
   free(user);
   free(serverConfig);
-  return 0;*/
+  destroyStash(&stash);
+  free(stash);
+  return 0;
 }
 
 int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig) {
@@ -264,10 +202,8 @@ int argumentHandler(int argc, char *argv[], ServerConfig *serverConfig) {
   return 0;
 }
 
-int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash) {
+int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseMessage, char *currentDirectory, Stash *stash, int sockfd) {
   strcpy(responseMessage, "\0");
-  printf("CURR WD:|%s|\n", currentDirectory);
-  //line[strlen(line)-1] = '\0';
     FILE *fp;
     char command[100];
   if(strcmp(line, "DONE") == 0) {
@@ -312,17 +248,15 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
                 sprintf(command, "ls -l %s", currentDirectory);
                 fp = popen(command, "r");
               } else {
-
                 if(validPath(currentDirectory, split) == false) {
                   strcpy(responseMessage, "-bad directory path");
                   return 0;
                 }
-
                   sprintf(command, "ls -l %s", split);
                   fp = popen(command, "r");
               }
           }
-        char buff[100];
+        char buff[1000];
         while (fgets(buff, 100, fp) != NULL) {
           strcat(responseMessage, buff);
         }
@@ -456,20 +390,44 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
           return 0;
         }
 
-        strcpy(command, "mv ");
-        strcat(command, stash->stash);
-        strcat(command, " ");
-        strcat(command, split);
+        char *path = malloc(sizeof(char) * 100);
 
+        strcpy(path, currentDirectory);
+
+        if(currentDirectory[strlen(currentDirectory)-1] != '/') {
+          strcat(path, "/");
+        }
+        printf("TU\n");
+        strcat(path, stash->stash);
+        strcpy(stash->typeStash, split);
+
+        strcpy(command, "mv ");
+        strcat(command, path);
+        strcat(command, " ");
+        printf("TU\n");
+        strcpy(path, currentDirectory);
+
+        if(currentDirectory[strlen(currentDirectory)-1] != '/') {
+          strcat(path, "/");
+        }
+        printf("TU\n");
+        strcat(path, split);
+        strcat(command, path);
+        printf("TU\n");
         system(command);
 
         strcpy(responseMessage, "+");
+        printf("TU\n");
         strcat(responseMessage, stash->stash);
+        printf("TU\n");
         strcat(responseMessage, "renamed to ");
-        strcat(responseMessage, split);
-
+        printf("TU\n");
+        printf("S:%s\n", stash->typeStash);
+        strcat(responseMessage, stash->typeStash);
+        printf("TU\n");
         strcpy(stash->stash, "");
         stash->operation = NONE;
+        printf("TU\n");
         return 0;
       } else if(strcmp(split, "TYPE") == 0) {
         split = strtok(NULL, " ");
@@ -538,10 +496,28 @@ int analyze(char *line, User **user, ServerConfig *serverConfig, char *responseM
           return 0;
         }
 
-        //TODO add function for sending file
+        int b;
+        char sendBuffer[100];
+        strcpy(command, currentDirectory);
+        if (currentDirectory[strlen(currentDirectory)-1] != '/') {
+          strcat(command, "/");
+        }
+        strcat(command, split);
+        printf("%s\n", command);
+
+        FILE *fpp = fopen(command, "rb");
+        if(fpp == NULL){
+          fprintf(stderr, "File\n");
+          return 2;
+        }
+
+        while( (b = fread(sendBuffer, 1, sizeof(sendBuffer), fp))>0 ){
+          send(sockfd, sendBuffer, b, 0);
+        }
 
         stash->operation = NONE;
         strcpy(stash->stash, "");
+        strcpy(command, "");
         return 0;
       } else if(strcmp(split, "STOP") == 0) {
         split = strtok(NULL, " ");

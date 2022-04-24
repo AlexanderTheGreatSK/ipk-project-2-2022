@@ -3,41 +3,44 @@
 #include <getopt.h>
 #include <string.h>
 #include <stdbool.h>
-#include <netinet/in.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 #include "clientConfig.h"
 #include <sys/socket.h>
-#include <netdb.h>
+#include <signal.h>
 
-#define MAX 80
-#define PORT 115
+#define NONE -1
+#define RECIVE 1
+#define SEND 2
 #define SA struct sockaddr
 
 int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig);
 void printUsage();
 void printHelp();
 void printLetMeIn();
-int analyze(char *line);
+int analyze(char *line, Stash *stash, int sockfd, ClientConfig *clientConfig);
+
+void catchSignal(int signal) {
+  if (signal == SIGINT) {
+    close(115);
+    exit(0);
+  }
+}
 
 int main(int argc, char **argv) {
   int sockfd,  n;
+  signal(SIGINT, catchSignal);
   struct addrinfo hints;
-  char buffer[256];
   struct addrinfo *result;
   struct addrinfo *rp;
-  char *portA = "115";
   int s;
-  //char *serverIP = "fe80::f55b:6004:5817:95e5";
-
   ClientConfig *clientConfig = malloc(sizeof(ClientConfig));
   initConfig(clientConfig);
 
-  printf("sdada\n");
-
   int rc = argumentHandler(argc, argv, clientConfig);
+
+  Stash *stash = malloc(sizeof(Stash));
+  initStash(stash);
 
   if(rc == 1) {
     printf("Bad arguments.\n");
@@ -51,15 +54,12 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  //char *serverIP = "2a02:8308:a085:7900:db6d:77f6:3ff0:e92a";
-  char *serverIP = "2a02:8308:a085:7900:eb66:11c6:3aa3:4feb";
-
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
 
-  s = getaddrinfo(serverIP, portA, &hints, &result);
+  s = getaddrinfo(clientConfig->ip, clientConfig->port, &hints, &result);
   if (s != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
     return 1;
@@ -84,13 +84,11 @@ int main(int argc, char **argv) {
   }
   freeaddrinfo(result);
 
-
-
-  char *line = malloc(sizeof(char) * 110);
+  char *line = malloc(sizeof(char) * 1000);
   int responseCode;
 
 
-  n = recv(sockfd, line, 100, 0);
+  n = recv(sockfd, line, 1000, 0);
   if (n < 0) {
     fprintf(stderr, "ERROR reading from socket");
     return 1;
@@ -99,10 +97,10 @@ int main(int argc, char **argv) {
   printf("%s\n", line);
 
   while(true) {
-    memset(line, 0, 100);
-    fgets(line, 100, stdin);
+    memset(line, 0, 1000);
+    fgets(line, 1000, stdin);
     line[strlen(line)-1] = '\0';
-    responseCode = analyze(line);
+    responseCode = analyze(line, stash, sockfd, clientConfig);
     if(responseCode == 1) {
       close(sockfd);
       break;
@@ -112,150 +110,27 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ERROR writing to socket");
       }
 
-      memset(line, 0, 100);
-      n = recv(sockfd, line, 100, 0);
+      memset(line, 0, 1000);
+      n = recv(sockfd, line, 1000, 0);
 
       if (n < 0) {
         fprintf(stderr, "ERROR reading from socket");
         return 1;
       }
+
       printf("%s\n", line);
+
+      if(line[0] == '-') {
+        stash->operation = NONE;
+        strcpy(stash->stash, "");
+      } else if(stash->operation == RECIVE) {
+        stash->length = (int) strtol(line, (char **) NULL, 10);
+      }
+
     }
   }
 
   return 0;
-    /*int flag_off = 0;
-    int sockfd, connfd;
-    struct addrinfo hints;
-    struct sockaddr_in6 servaddr, cli;
-
-    // socket create and verification
-    sockfd = socket(AF_INET6, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        printf("socket creation failed...\n");
-        exit(0);
-    }
-    else
-        printf("Socket successfully created..\n");
-
-
-    bzero(&servaddr, sizeof(servaddr));
-    // assign IP, PORT
-    servaddr.sin6_family = AF_UNSPEC;
-    //servaddr.sin6_addr = inet_addr("192.168.56.102");
-    inet_pton(AF_INET6, "fe80::f55b:6004:5817:95e5", &servaddr.sin6_addr);
-    servaddr.sin6_port = htons(PORT);
-    servaddr.sin6_flowinfo = 0;
-    servaddr.sin6_scope_id = 0;
-
-    // connect the client socket to server socket
-    if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) {
-        printf("connection with the server failed...\n");
-        exit(0);
-    }
-    else
-        printf("connected to the server..\n");
-
-    // function for chat
-    func(sockfd);
-
-    // close the socket
-    close(sockfd);
-    return 0;*/
-  /*bool loggedIn = false;
-  bool tobe = false;
-  bool sendB = false;
-  ClientConfig *clientConfig = malloc(sizeof(ClientConfig));
-  initConfig(clientConfig);
-
-    int flag = 1;
-    int flag_off = 0;
-
-  int rc = argumentHandler(argc, argv, clientConfig);
-
-  if(rc == 1) {
-    printf("Bad arguments.\n");
-    printf("Use parameter -H to get help.\n");
-    destroyConfig(&clientConfig);
-    free(clientConfig);
-    return 1;
-  } else if(rc == 2) {
-    destroyConfig(&clientConfig);
-    free(clientConfig);
-    return 0;
-  }
-
-  int socket_desc;
-  struct sockaddr_in server_addr;
-  char server_message[2000], client_message[2000];
-
-    memset(server_message,'\0',sizeof(server_message));
-    memset(client_message,'\0',sizeof(client_message));
-
-    // Create socket:
-    socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-
-    if(socket_desc < 0){
-        printf("Unable to create socket\n");
-        return -1;
-    }
-
-    printf("Socket created successfully\n");
-
-    // Set port and IP the same as server-side:
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(2000);
-    server_addr.sin_addr.s_addr = inet_addr("192.168.56.102");
-
-    // Send connection request to server:
-    if(connect(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
-        printf("Unable to connect\n");
-        return -1;
-    }
-    printf("Connected with server successfully\n");
-
-    // Get input from the user:
-    printf("Enter message: ");
-    fgets(client_message, 1000, stdin);
-
-    // Send the message to server:
-    if(send(socket_desc, client_message, strlen(client_message), 0) < 0){
-        printf("Unable to send message\n");
-        return -1;
-    }
-
-    // Receive the server's response:
-    if(recv(socket_desc, server_message, sizeof(server_message), 0) < 0){
-        printf("Error while receiving server's msg\n");
-        return -1;
-    }
-
-    printf("Server's response: %s\n",server_message);
-
-    // Close the socket:
-    close(socket_desc);
-
-    return 0;
-
-  char *line = malloc(sizeof(char) * 110);
-  int responseCode;
-  while(true) {
-    fgets(line, 100, stdin);
-    responseCode = analyze(line, &loggedIn, &tobe, &sendB);
-    if(responseCode == 1) {
-      break;
-    } else if(responseCode == -1) {
-      printf("Not a valid command.\n");
-      printf("Use HELP for help.\n");
-      printf("Use LET-ME-IN for help with logging in.\n");
-    }
-  }
-
-  free(line);
-  destroyConfig(&clientConfig);
-  free(clientConfig);
-
-  return 0;*/
 }
 
 int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig) {
@@ -268,7 +143,7 @@ int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig) {
         strcpy(clientConfig->ip, optarg);
         break;
       case 'p':
-        clientConfig->port = (int) strtol(optarg, &p, 10);
+        strcpy(clientConfig->port, optarg);
         break;
       case 'f':
         strcpy(clientConfig->workingDirectory, optarg);
@@ -290,7 +165,9 @@ int argumentHandler(int argc, char *argv[], ClientConfig *clientConfig) {
   return 0;
 }
 
-int analyze(char *line) {
+int analyze(char *line, Stash *stash, int sockfd, ClientConfig *clientConfig) {
+  char help[100];
+
   if(strcmp(line, "DONE") == 0) {
     return 1;
   } else if(strcmp(line, "HELP") == 0) {
@@ -305,15 +182,58 @@ int analyze(char *line) {
     char *split = strtok(buff, " ");
     if((strcmp(split, "HOME") == 0) || (strcmp(split, "LIST") == 0) || (strcmp(split, "CDIR") == 0) ||
       (strcmp(split, "KILL") == 0) || (strcmp(split, "NAME") == 0) || (strcmp(split, "TOBE") == 0) ||
-      (strcmp(split, "TYPE") == 0) || (strcmp(split, "RETR") == 0) || (strcmp(split, "SEND") == 0) ||
-      (strcmp(split, "STOP") == 0) || (strcmp(split, "STOR") == 0) || (strcmp(split, "SIZE") == 0) ||
+      (strcmp(split, "TYPE") == 0) ||
+      (strcmp(split, "STOR") == 0) || (strcmp(split, "SIZE") == 0) ||
       (strcmp(split, "USER") == 0) || (strcmp(split, "ACCT") == 0) || (strcmp(split, "PASS") == 0)) {
+      return 2;
+    } else if(strcmp(split, "RETR") == 0) {
+      split = strtok(NULL, " ");
+
+      if(split == NULL) {
+        printf("Use command HELP for help.\n");
+        printf("Use command LET-ME-IN for help with log in.\n");
+        return 0;
+      }
+      stash->operation = SEND;
+      strcpy(stash->stash, split);
+      return 2;
+    } else if(strcmp(split, "SEND") == 0) {
+      printf("send\n");
+      int n = send(sockfd,"SEND", 5, 0);
+      if(n < 0) {
+        fprintf(stderr, "ERROR writing to socket");
+      }
+      strcpy(help, clientConfig->workingDirectory);
+
+      if (clientConfig->workingDirectory[strlen(clientConfig->workingDirectory)-1] != '/') {
+        strcat(help, "/");
+      }
+
+      strcat(help, stash->stash);
+
+        FILE *fp = fopen(help, "wb");
+        int tot = 0;
+        int b = 0;
+
+      if(fp != NULL){
+        while( (b = recv(sockfd, buff, 1000,0)) > 0 ) {
+          tot+=b;
+          fwrite(buff, 1, b, fp);
+        }
+        fclose(fp);
+      }
+      printf("sendEND\n");
+      return 0;
+    } else if(strcmp(split, "STOP") == 0) {
+      stash->operation = NONE;
+      strcpy(stash->stash, "");
       return 2;
     } else {
       printf("Use command HELP for help.\n");
       printf("Use command LET-ME-IN for help with log in.\n");
       return 0;
     }
+
   }
 }
 
@@ -336,7 +256,7 @@ void printHelp() {
   printf("------------------------------------------------------------------------------------------\n");
   printf("Usage:\n");
   printf("\t<command> : = <cmd> [<SPACE> <args>] <NULL>\n");
-  printf("\t<cmd> : =  USER ! ACCT ! PASS ! TYPE ! LIST ! CDIR ! KILL ! NAME ! DONE ! RETR ! STOR\n");
+  printf("\t<cmd> : =  USER ! ACCT ! PASS ! TYPE ! LIST ! CDIR ! KILL ! NAME ! DONE ! RETR ! STOR ! HOME\n");
   printf("\t<response> : = <response-code> [<message>] <NULL>\n");
   printf("\t<response-code> : =  + | - |   | !\n");
   printf("\t<message> can contain <CRLF>\n");
